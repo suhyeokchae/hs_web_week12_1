@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BLEU ATELIER · 회원 관리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+/* 쇼핑몰(index.html)과 같은 색: 다크블루 + 로열블루, 포인트 골드 */
+:root {
+  --navy-950: #050b22; --navy-900: #0a1438; --navy-800: #0b1d5c;
+  --royal: #2a52be; --royal-l: #4169e1; --sky: #e8edf8; --gold: #f2b84b;
+  --red: #ff3b3b; --ink: #111; --gray: #777; --line: #e6e6e6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Pretendard", -apple-system, "Malgun Gothic", sans-serif; color: var(--ink); background: #f5f6fa; -webkit-font-smoothing: antialiased; word-break: keep-all; }
+a { color: inherit; text-decoration: none; }
+button, input, select { font-family: inherit; font-size: 13px; }
+button { cursor: pointer; border: 0; background: none; color: inherit; }
+.hidden { display: none !important; }
+
+header { background: var(--navy-950); color: #fff; height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 20px; position: sticky; top: 0; z-index: 10; }
+.logo { font-weight: 900; letter-spacing: .08em; font-size: 17px; }
+.logo i { font-style: normal; color: var(--gold); }
+.badge { background: var(--gold); color: var(--navy-950); font-size: 11px; font-weight: 900; padding: 3px 8px; border-radius: 10px; }
+.hdr-r { margin-left: auto; display: flex; gap: 12px; align-items: center; font-size: 13px; color: #c9d4f0; }
+.hdr-r a, .hdr-r button { border: 1px solid #3a4670; border-radius: 4px; padding: 5px 10px; color: #dfe5f5; }
+.hdr-r a:hover, .hdr-r button:hover { border-color: var(--gold); color: #fff; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px; }
+h2 { font-size: 18px; font-weight: 800; margin: 28px 0 12px; display: flex; align-items: baseline; gap: 8px; }
+h2 small { font-size: 12px; color: var(--gray); font-weight: 500; }
+
+/* 요약 숫자 */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat { background: var(--navy-900); color: #fff; border-radius: 8px; padding: 16px 18px; }
+.stat span { font-size: 12px; color: #9fb0d8; }
+.stat b { display: block; font-size: 24px; color: var(--gold); margin-top: 4px; }
+.stat small { display: block; font-size: 11px; color: #c9d4f0; margin-top: 4px; }
+
+/* 도구 줄 */
+.tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.tools input, .tools select { height: 36px; border: 1px solid #ddd; border-radius: 4px; padding: 0 10px; background: #fff; outline: none; }
+.tools input:focus, .tools select:focus { border-color: var(--royal); }
+.tools input { width: 220px; }
+.count { font-size: 12px; color: var(--gray); margin-left: auto; }
+
+/* 표 */
+.tbl-wrap { background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+th { background: var(--sky); color: var(--navy-800); font-weight: 800; text-align: left; padding: 10px 12px; white-space: nowrap; }
+td { padding: 9px 12px; border-top: 1px solid #f0f0f0; vertical-align: middle; }
+tr.me td { background: #fffaf0; }
+td select, td input { height: 32px; border: 1px solid #ddd; border-radius: 4px; padding: 0 6px; background: #fff; }
+td input[type=number] { width: 96px; text-align: right; }
+td .muted { color: var(--gray); font-size: 12px; }
+.gtag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 3px; letter-spacing: .04em; }
+.g-WELCOME { background: #dfe5f5; color: #0b1d5c; } .g-SILVER { background: #cfd5df; color: #39445c; }
+.g-GOLD { background: var(--gold); color: #4a2f04; } .g-VIP { background: var(--royal-l); color: #fff; }
+.admin-tag { background: var(--navy-800); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 3px; margin-left: 4px; }
+.save { height: 32px; padding: 0 12px; border-radius: 4px; background: var(--navy-800); color: #fff; font-weight: 700; }
+.save:hover { background: var(--royal); }
+.save:disabled { background: #c9cfdc; cursor: default; }
+.empty { text-align: center; color: var(--gray); padding: 40px 0; }
+
+/* 로그인 · 안내 */
+.card { max-width: 400px; margin: 60px auto; background: #fff; border-radius: 10px; padding: 30px; box-shadow: 0 6px 24px rgba(5,11,34,.08); }
+.card h3 { font-size: 20px; margin-bottom: 6px; }
+.card p { font-size: 13px; color: var(--gray); margin-bottom: 18px; }
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; color: #444; }
+.field input { width: 100%; height: 44px; border: 1px solid #ddd; border-radius: 4px; padding: 0 12px; font-size: 14px; outline: none; }
+.field input:focus { border-color: var(--royal); }
+.btn { display: flex; align-items: center; justify-content: center; width: 100%; height: 46px; border-radius: 4px; background: var(--navy-800); color: #fff; font-size: 15px; font-weight: 700; }
+.btn:hover { background: var(--royal); }
+.err { color: var(--red); font-size: 12px; min-height: 16px; margin-bottom: 8px; }
+
+.toast { position: fixed; z-index: 50; left: 50%; bottom: 28px; transform: translate(-50%, 30px); background: #111; color: #fff; padding: 12px 20px; border-radius: 6px; font-size: 14px; opacity: 0; transition: .3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 760px) {
+  .stats { grid-template-columns: 1fr 1fr; }
+  .tools input { width: 100%; }
+  .count { margin-left: 0; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">BLEU <i>ATELIER</i></a>
+  <span class="badge">ADMIN</span>
+  <div class="hdr-r">
+    <span id="who"></span>
+    <a href="index.html">쇼핑몰로</a>
+    <button id="logoutBtn" class="hidden">로그아웃</button>
+  </div>
+</header>
+
+<!-- 로그인 안 했을 때 -->
+<div id="loginView" class="hidden"><div class="card">
+  <h3>관리자 로그인</h3>
+  <p>관리자로 지정된 계정(shop_profiles.role = admin)만 들어올 수 있어요.</p>
+  <form id="loginForm" novalidate>
+    <div class="field"><label>이메일</label><input name="email" type="email" autocomplete="username"></div>
+    <div class="field"><label>비밀번호</label><input name="pw" type="password" autocomplete="current-password"></div>
+    <p class="err" id="loginErr"></p>
+    <button class="btn" type="submit">로그인</button>
+  </form>
+</div></div>
+
+<!-- 관리 화면 -->
+<main id="adminView" class="hidden">
+  <h2>한눈에 보기</h2>
+  <div class="stats" id="stats"></div>
+
+  <h2>회원 목록 <small>등급 · 포인트 · 역할을 바꾸고 「저장」 → shop_admin_update_member 함수로 저장</small></h2>
+  <div class="tools">
+    <input id="q" placeholder="이름 · 이메일 검색">
+    <select id="gradeFilter">
+      <option value="">모든 등급</option>
+      <option>WELCOME</option><option>SILVER</option><option>GOLD</option><option>VIP</option>
+    </select>
+    <select id="roleFilter">
+      <option value="">모든 역할</option>
+      <option value="member">회원</option><option value="admin">관리자</option>
+    </select>
+    <span class="count" id="memberCount"></span>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>이름</th><th>이메일</th><th>연락처</th><th>등급</th><th>포인트</th><th>역할</th><th>가입일</th><th></th></tr></thead>
+    <tbody id="members"></tbody>
+  </table></div>
+
+  <h2>주문 목록 <small>상태를 바꾸면 바로 shop_orders 에 저장</small></h2>
+  <div class="tools">
+    <select id="statusFilter">
+      <option value="">모든 상태</option>
+      <option>결제완료</option><option>배송중</option><option>배송완료</option><option>취소</option>
+    </select>
+    <span class="count" id="orderCount"></span>
+  </div>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>주문번호</th><th>주문일</th><th>주문자</th><th>상품</th><th>결제금액</th><th>상태</th></tr></thead>
+    <tbody id="orders"></tbody>
+  </table></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<!-- Supabase 와 대화하는 도구 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* 쇼핑몰(index.html)과 같은 주소 · 공개 키 */
+const SUPABASE_URL = "https://thdqypzegjcfwdiuweuj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QSLZK-xYi7mcunpVOkLD_g_ICE_Ghmy";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const GRADES = ["WELCOME", "SILVER", "GOLD", "VIP"];
+const STATUSES = ["결제완료", "배송중", "배송완료", "취소"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const won = n => Math.round(n || 0).toLocaleString("ko-KR") + "원";
+const z2 = n => String(n).padStart(2, "0");
+const fmt = iso => { if (!iso) return "-"; const d = new Date(iso); return `${d.getFullYear()}.${z2(d.getMonth() + 1)}.${z2(d.getDate())} ${z2(d.getHours())}:${z2(d.getMinutes())}`; };
+const orderNo = id => "BA" + String(id).padStart(8, "0");
+let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2400); }
+
+let me = null, members = [], orders = [];
+
+/* ① 들어올 수 있는 사람인지 확인: 로그인 + role 이 admin */
+async function start() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session) { $("#loginView").classList.remove("hidden"); $("#adminView").classList.add("hidden"); return; }
+  const { data: prof, error } = await db.from("shop_profiles").select("*").eq("id", session.user.id).maybeSingle();
+  if (error || !prof || prof.role !== "admin") {
+    alert("관리자만 들어올 수 있어요. 쇼핑몰로 돌아갑니다.");
+    location.href = "index.html";
+    return;
+  }
+  me = prof;
+  $("#who").textContent = `${me.name || me.email} 님`;
+  $("#logoutBtn").classList.remove("hidden");
+  $("#loginView").classList.add("hidden"); $("#adminView").classList.remove("hidden");
+  await loadAll();
+}
+
+$("#loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const v = Object.fromEntries(new FormData(e.target));
+  const { error } = await db.auth.signInWithPassword({ email: (v.email || "").trim().toLowerCase(), password: v.pw || "" });
+  if (error) { $("#loginErr").textContent = /Invalid login/i.test(error.message) ? "이메일 또는 비밀번호가 맞지 않아요." : error.message; return; }
+  start();
+});
+$("#logoutBtn").onclick = async () => { await db.auth.signOut(); location.href = "index.html"; };
+
+/* ② 데이터 읽기: 관리자는 보안 규칙(RLS)에서 모든 줄을 볼 수 있다 */
+async function loadAll() {
+  const [m, o] = await Promise.all([
+    db.from("shop_profiles").select("*").order("created_at", { ascending: false }),
+    db.from("shop_orders").select("id, user_id, total, status, created_at, shop_order_items(qty, shop_products(name))").order("created_at", { ascending: false })
+  ]);
+  if (m.error) toast("회원을 불러오지 못했어요: " + m.error.message);
+  if (o.error) toast("주문을 불러오지 못했어요: " + o.error.message);
+  members = m.data || []; orders = o.data || [];
+  renderStats(); renderMembers(); renderOrders();
+}
+
+/* ③ 요약 숫자 (COUNT · SUM · GROUP BY 를 화면에서) */
+function renderStats() {
+  const byGrade = GRADES.map(g => `${g} ${members.filter(x => x.grade === g).length}`).join(" · ");
+  const live = orders.filter(o => o.status !== "취소");
+  const sum = live.reduce((a, o) => a + o.total, 0);
+  const pts = members.reduce((a, x) => a + x.points, 0);
+  $("#stats").innerHTML = `
+    <div class="stat"><span>회원 수</span><b>${members.length}명</b><small>${byGrade}</small></div>
+    <div class="stat"><span>주문 수</span><b>${orders.length}건</b><small>취소 ${orders.length - live.length}건 제외 ${live.length}건</small></div>
+    <div class="stat"><span>주문 합계</span><b>${won(sum)}</b><small>취소 제외</small></div>
+    <div class="stat"><span>회원 보유 포인트</span><b>${pts.toLocaleString("ko-KR")}P</b><small>전체 합계</small></div>`;
+}
+
+/* ④ 회원 목록 · 검색 · 등급 필터 */
+function renderMembers() {
+  const q = $("#q").value.trim().toLowerCase(), gf = $("#gradeFilter").value, rf = $("#roleFilter").value;
+  const list = members.filter(x =>
+    (!q || (x.name || "").toLowerCase().includes(q) || (x.email || "").toLowerCase().includes(q)) &&
+    (!gf || x.grade === gf) && (!rf || x.role === rf));
+  $("#memberCount").textContent = `${list.length}명 / 전체 ${members.length}명`;
+  $("#members").innerHTML = list.length ? list.map(x => `
+    <tr data-id="${x.id}" class="${x.id === me.id ? "me" : ""}">
+      <td><b>${esc(x.name) || "<span class='muted'>(이름 없음)</span>"}</b>${x.role === "admin" ? `<span class="admin-tag">관리자</span>` : ""}</td>
+      <td>${esc(x.email)}</td>
+      <td class="muted">${esc(x.phone) || "-"}</td>
+      <td><select data-f="grade">${GRADES.map(g => `<option ${g === x.grade ? "selected" : ""}>${g}</option>`).join("")}</select></td>
+      <td><input data-f="points" type="number" min="0" step="100" value="${x.points}"></td>
+      <td><select data-f="role"><option value="member" ${x.role === "member" ? "selected" : ""}>회원</option><option value="admin" ${x.role === "admin" ? "selected" : ""}>관리자</option></select></td>
+      <td class="muted">${fmt(x.created_at)}</td>
+      <td><button class="save" data-save disabled>저장</button></td>
+    </tr>`).join("") : `<tr><td colspan="8" class="empty">조건에 맞는 회원이 없어요.</td></tr>`;
+}
+["#q", "#gradeFilter", "#roleFilter"].forEach(s => $(s).addEventListener("input", renderMembers));
+
+// 값을 바꾸면 그 줄의 저장 버튼이 켜진다
+$("#members").addEventListener("input", e => { const tr = e.target.closest("tr"); if (tr) tr.querySelector("[data-save]").disabled = false; });
+
+/* ⑤ 등급 · 포인트 · 역할 저장 → shop_admin_update_member 함수 */
+$("#members").addEventListener("click", async e => {
+  const b = e.target.closest("[data-save]"); if (!b) return;
+  const tr = b.closest("tr"), id = tr.dataset.id;
+  const grade = tr.querySelector("[data-f=grade]").value;
+  const points = parseInt(tr.querySelector("[data-f=points]").value, 10);
+  const role = tr.querySelector("[data-f=role]").value;
+  if (!Number.isInteger(points) || points < 0) { toast("포인트는 0 이상의 정수로 넣어주세요"); return; }
+  if (id === me.id && role !== "admin" && !confirm("내 계정을 회원으로 바꾸면 이 페이지에 다시 들어올 수 없어요. 계속할까요?")) return;
+  b.disabled = true; b.textContent = "저장 중";
+  const { error } = await db.rpc("shop_admin_update_member", { p_user_id: id, p_grade: grade, p_points: points, p_role: role });
+  b.textContent = "저장";
+  if (error) { b.disabled = false; toast("저장 실패: " + error.message); return; }
+  const m = members.find(x => x.id === id); Object.assign(m, { grade, points, role });
+  toast("저장했어요");
+  if (id === me.id && role !== "admin") { location.href = "index.html"; return; }
+  renderStats(); renderMembers();
+});
+
+/* ⑥ 주문 목록 · 상태 바꾸기 → shop_orders.status */
+function renderOrders() {
+  const sf = $("#statusFilter").value;
+  const name = uid => { const m = members.find(x => x.id === uid); return m ? (m.name || m.email) : "(알 수 없음)"; };
+  const list = orders.filter(o => !sf || o.status === sf);
+  $("#orderCount").textContent = `${list.length}건 / 전체 ${orders.length}건`;
+  $("#orders").innerHTML = list.length ? list.map(o => {
+    const its = o.shop_order_items || [];
+    const first = its[0] && its[0].shop_products ? its[0].shop_products.name : "상품";
+    const qty = its.reduce((a, i) => a + i.qty, 0);
+    return `<tr data-oid="${o.id}">
+      <td><b>${orderNo(o.id)}</b></td>
+      <td class="muted">${fmt(o.created_at)}</td>
+      <td>${esc(name(o.user_id))}</td>
+      <td>${esc(first)}${its.length > 1 ? ` 외 ${its.length - 1}건` : ""} <span class="muted">(${qty}개)</span></td>
+      <td><b>${won(o.total)}</b></td>
+      <td><select data-status>${STATUSES.map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}</select></td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="6" class="empty">주문이 없어요.</td></tr>`;
+}
+$("#statusFilter").addEventListener("input", renderOrders);
+$("#orders").addEventListener("change", async e => {
+  const s = e.target.closest("[data-status]"); if (!s) return;
+  const id = Number(s.closest("tr").dataset.oid), status = s.value;
+  const { error } = await db.from("shop_orders").update({ status }).eq("id", id);
+  if (error) { toast("상태 변경 실패: " + error.message); renderOrders(); return; }
+  orders.find(o => o.id === id).status = status;
+  toast(`${orderNo(id)} → ${status}`); renderStats(); renderOrders();
+});
+
+start();
+</script>
+</body>
+</html>

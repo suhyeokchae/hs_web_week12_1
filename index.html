@@ -56,7 +56,7 @@ header { position: sticky; top: 0; z-index: 100; }
 .me-chip { display: inline-flex; align-items: center; gap: 6px; }
 .gtag { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 3px; letter-spacing: .04em; }
 .g-WELCOME { background: #dfe5f5; color: #0b1d5c; } .g-SILVER { background: #cfd5df; color: #39445c; }
-.g-GOLD { background: var(--gold); color: #4a2f04; } .g-ROYAL { background: var(--royal-l); color: #fff; }
+.g-GOLD { background: var(--gold); color: #4a2f04; } .g-VIP { background: var(--royal-l); color: #fff; }
 .me-chip b { color: var(--gold); }
 
 /* 2단: 브랜드 카테고리 바 */
@@ -328,6 +328,10 @@ table.chart { width: 100%; border-collapse: collapse; font-size: 12px; margin-to
   .sizes { grid-template-columns: repeat(4, 1fr); }
   .d-info { padding: 22px 18px; }
   .util { gap: 12px; }
+  /* 로그인한 뒤 머리줄이 375px 을 넘지 않게 */
+  .gnb-top { gap: 10px; padding: 0 12px; }
+  .burger, .sep, .me-chip b, .admin-link { display: none; }
+  .logo { font-size: 15px; }
 }
 </style>
 </head>
@@ -421,7 +425,7 @@ table.chart { width: 100%; border-collapse: collapse; font-size: 12px; margin-to
 
 <footer><div class="wrap">
   <b>BLEU ATELIER</b> · 고객센터 1588-0000 (평일 10:00~17:00) · help@bleuatelier.example<br>
-  본 사이트는 과제용 데모 쇼핑몰입니다. 상품·브랜드는 가상이며, 회원·주문 정보는 이 브라우저에만 저장되고 실제 결제는 이루어지지 않습니다.<br>
+  본 사이트는 과제용 데모 쇼핑몰입니다. 상품·브랜드는 가상이며, 회원·상품·주문 정보는 Supabase 데이터베이스에 저장되며 실제 결제는 이루어지지 않습니다.<br>
   © 2026 BLEU ATELIER.
 </div></footer>
 
@@ -527,6 +531,8 @@ table.chart { width: 100%; border-collapse: collapse; font-size: 12px; margin-to
 
 <div class="toast" id="toast"></div>
 
+<!-- Supabase 와 대화하는 도구 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* 이미지 (파일 안에 직접 포함 — img 폴더 없이도 보임) */
 const IMG = {
@@ -557,32 +563,54 @@ const IMG = {
   p20: "data:image/jpeg;base64,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YNvgg3edK6o1HImRhBjG/JtTfI1aSVQLj0rqZbYrw8MFwmy1kbvIzKCgrO4kReuldSYn4y1e4pdoLXgvPsXn2LXc5km/xpXUmbXgl7ZJvDGRZlge7bSJolotO70rqb25hgjspmxqiEwQxsJWKb++ldTe1ZQIEUckINjs5gZbm1pXUme2IE/0IHJQbU3yNGklUHoLWhdSZ7A4PBfPoSeckshtEoKLuMXcKdK6kzBim5bb8lu0CleB0h+BUl+CnckmtK6k9Kdul7l3CyduxZ1hGXYVhQhvpXUnoT3xCQEBNDfO0rqT0fMF98X3RfdE90X3z5+hdUfOPknyT5J8k+afN6sfMPnnzT5p88+WfNF1RiQCrIxOERZGJAiyMaERZGNCJLLGhOQxwRVmYuqNEf5AjrEaQR/6T//aAAwDAQACAAMAAAAQ88888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888888884w8w08w8w0888888888888888888ofbKUPznvhufiW888888888888888ol/PXLfPnHTHrzLU888888888888888n7Pr7TnLPnnjfz8888888888888888VLzPxplJXNjf7D8888888888888884BamuT0Y0qFCDeo0888888888888884c4AIQQ043PHPWs0888888888888888cM88888oUnjDus88888888888888888888888oU7zPq8888888888888888888888888sPH/q8888888888888888888888888qzfvvU888888888888888888888888K7TjVU88888888888888888888888869ojTU888888888888888888888884nEMkD888888888888888888888888oF1xzN888888888888888888888888of7jfl088888888888888888888888opH3vaU88888888888888888888888ox3nnic88888888888888888888888oF1jL+888888888888888888888888orq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"
 };
 /* ════════════════════════════════════════════════════════
-   데이터
+   0. Supabase 연결 (공개해도 되는 Project URL + Publishable key 만 넣는다)
    ════════════════════════════════════════════════════════ */
-// type: top(상의·아우터) / bottom(바지) / free(모자·가방·소품)
-// gender: 남성 / 여성 / 공용  → 상세에서 남성·여성 사이즈 기준 선택
-const PRODUCTS = [
-  { id: "p01", name: "Fur Flap Trooper Cap in Ivory",          cat: "ACC",  type: "hat",    gender: "공용", price: 88000,  sale: .19, likes: 26, tags: ["쿠폰", "NEW"] },
-  { id: "p02", name: "Fur Flap Trooper Cap in Cocoa",          cat: "ACC",  type: "hat",    gender: "공용", price: 88000,  sale: .19, likes: 31, tags: ["쿠폰", "NEW"] },
-  { id: "p03", name: "Soft Touch Sweatpants in Black",         cat: "바지", type: "bottom", gender: "남성", price: 148000, sale: .19, likes: 13, tags: ["쿠폰", "NEW"] },
-  { id: "p04", name: "Cropped Zip Up Hoodie in Black",         cat: "상의", type: "top",    gender: "여성", price: 158000, sale: .19, likes: 44, tags: ["쿠폰", "NEW"] },
-  { id: "p05", name: "Cropped Zip Up Hoodie in Grey",          cat: "상의", type: "top",    gender: "여성", price: 158000, sale: .19, likes: 39, tags: ["쿠폰", "NEW"] },
-  { id: "p06", name: "Mohair Blend Panel Pullover in Grey",    cat: "상의", type: "top",    gender: "남성", price: 148000, sale: .19, likes: 23, tags: ["쿠폰", "NEW"] },
-  { id: "p07", name: "Mohair Blend Panel Pullover in Mint",    cat: "상의", type: "top",    gender: "여성", price: 148000, sale: .19, likes: 34, tags: ["쿠폰", "NEW"] },
-  { id: "p08", name: "Dark Wash Wide Denim in Navy",           cat: "바지", type: "bottom", gender: "여성", price: 198000, sale: .19, likes: 11, tags: ["쿠폰", "NEW"] },
-  { id: "p09", name: "Quilted Cargo Pants in Khaki",           cat: "바지", type: "bottom", gender: "공용", price: 178000, sale: .19, likes: 17, tags: ["쿠폰", "NEW"] },
-  { id: "p10", name: "Binding Fleece Pants in Charcoal",       cat: "바지", type: "bottom", gender: "공용", price: 158000, sale: .19, likes: 9,  tags: ["쿠폰", "NEW"] },
-  { id: "p11", name: "Fur Hood Fishtail Parka in Charcoal",    cat: "아우터", type: "top",  gender: "공용", price: 458000, sale: .19, likes: 57, tags: ["쿠폰", "NEW"] },
-  { id: "p12", name: "Fur Hood Fishtail Parka in Olive",       cat: "아우터", type: "top",  gender: "공용", price: 458000, sale: .19, likes: 48, tags: ["쿠폰", "NEW"] },
-  { id: "p13", name: "Fluffy V Neck Cardigan in Black",        cat: "상의", type: "top",    gender: "여성", price: 218000, sale: .19, likes: 27, tags: ["쿠폰", "NEW"] },
-  { id: "p14", name: "Fluffy V Neck Cardigan in Sky Blue",     cat: "상의", type: "top",    gender: "여성", price: 218000, sale: .19, likes: 36, tags: ["쿠폰", "NEW"] },
-  { id: "p15", name: "Panel Fleece Hoodie Top in Charcoal",    cat: "상의", type: "top",    gender: "남성", price: 168000, sale: .19, likes: 12, tags: ["쿠폰", "NEW"] },
-  { id: "p16", name: "Stand Collar Padded Jumper in Khaki",    cat: "아우터", type: "top",  gender: "여성", price: 358000, sale: .19, likes: 21, tags: ["쿠폰", "NEW"] },
-  { id: "p17", name: "Faux Fur Crop Jacket in Brown",          cat: "아우터", type: "top",  gender: "여성", price: 348000, sale: .19, likes: 29, tags: ["쿠폰", "NEW"] },
-  { id: "p18", name: "Heavy Fleece Color Block Jumper",        cat: "아우터", type: "top",  gender: "남성", price: 238000, sale: .19, likes: 18, tags: ["쿠폰", "NEW"] },
-  { id: "p19", name: "Suede Chain Shoulder Bag in Brown",      cat: "ACC",  type: "free",   gender: "여성", price: 198000, sale: .4,  likes: 42, tags: ["쿠폰", "OUTLET"] },
-  { id: "p20", name: "Ribbed Wool Muffler in Oatmeal",         cat: "ACC",  type: "free",   gender: "공용", price: 78000,  sale: .3,  likes: 15, tags: ["쿠폰", "OUTLET"] }
-].map((p, i) => ({ ...p, img: IMG[p.id], order: i }));
+const SUPABASE_URL = "https://thdqypzegjcfwdiuweuj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_QSLZK-xYi7mcunpVOkLD_g_ICE_Ghmy";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ════════════════════════════════════════════════════════
+   데이터
+   · 상품 이름 · 분류 · 판매가 · 재고 → shop_products 표에서 읽어 온다
+   · 사진 · 정가 · 사이즈 종류 · 성별 · 태그 → 화면용이라 아래 META 에 둔다
+     (shop_products.image_url 의 p01 ~ p20 으로 짝을 짓는다)
+   ════════════════════════════════════════════════════════ */
+// type: top(상의·아우터) / bottom(바지) / hat(모자) / free(가방·소품)
+const META = {
+  p01: { type: "hat",    gender: "공용", list: 88000,  likes: 26, tags: ["쿠폰", "NEW"] },
+  p02: { type: "hat",    gender: "공용", list: 88000,  likes: 31, tags: ["쿠폰", "NEW"] },
+  p03: { type: "bottom", gender: "남성", list: 148000, likes: 13, tags: ["쿠폰", "NEW"] },
+  p04: { type: "top",    gender: "여성", list: 158000, likes: 44, tags: ["쿠폰", "NEW"] },
+  p05: { type: "top",    gender: "여성", list: 158000, likes: 39, tags: ["쿠폰", "NEW"] },
+  p06: { type: "top",    gender: "남성", list: 148000, likes: 23, tags: ["쿠폰", "NEW"] },
+  p07: { type: "top",    gender: "여성", list: 148000, likes: 34, tags: ["쿠폰", "NEW"] },
+  p08: { type: "bottom", gender: "여성", list: 198000, likes: 11, tags: ["쿠폰", "NEW"] },
+  p09: { type: "bottom", gender: "공용", list: 178000, likes: 17, tags: ["쿠폰", "NEW"] },
+  p10: { type: "bottom", gender: "공용", list: 158000, likes: 9,  tags: ["쿠폰", "NEW"] },
+  p11: { type: "top",    gender: "공용", list: 458000, likes: 57, tags: ["쿠폰", "NEW"] },
+  p12: { type: "top",    gender: "공용", list: 458000, likes: 48, tags: ["쿠폰", "NEW"] },
+  p13: { type: "top",    gender: "여성", list: 218000, likes: 27, tags: ["쿠폰", "NEW"] },
+  p14: { type: "top",    gender: "여성", list: 218000, likes: 36, tags: ["쿠폰", "NEW"] },
+  p15: { type: "top",    gender: "남성", list: 168000, likes: 12, tags: ["쿠폰", "NEW"] },
+  p16: { type: "top",    gender: "여성", list: 358000, likes: 21, tags: ["쿠폰", "NEW"] },
+  p17: { type: "top",    gender: "여성", list: 348000, likes: 29, tags: ["쿠폰", "NEW"] },
+  p18: { type: "top",    gender: "남성", list: 238000, likes: 18, tags: ["쿠폰", "NEW"] },
+  p19: { type: "free",   gender: "여성", list: 198000, likes: 42, tags: ["쿠폰", "OUTLET"] },
+  p20: { type: "free",   gender: "공용", list: 78000,  likes: 15, tags: ["쿠폰", "OUTLET"] }
+};
+const NOIMG = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 6'><rect width='5' height='6' fill='%23eeeeee'/></svg>";
+let PRODUCTS = [], productsLoaded = false;
+
+function toProduct(row, i) {
+  const code = row.image_url || "";
+  const m = META[code] || { type: "free", gender: "공용", list: row.price, likes: 0, tags: [] };
+  return {
+    id: String(row.id), dbId: row.id, code, name: row.name, cat: row.category,
+    price: row.price, list: Math.max(m.list, row.price), stock: row.stock,
+    type: m.type, gender: m.gender, likes: m.likes, tags: m.tags,
+    img: IMG[code] || (/^(https?:|data:)/.test(code) ? code : NOIMG), order: i
+  };
+}
 
 // 사이즈 표 (cm). 남성/여성 기준이 다름
 const SIZE = {
@@ -603,13 +631,14 @@ const SIZE = {
     여성: { cols: ["사이즈", "", "", "", ""], rows: [["FREE", "", "", "", "", ""]] }
   }
 };
-const SOLDOUT = { p04: ["여성:XS"], p11: ["남성:XXL"], p08: ["여성:24"], p17: ["여성:L"] };   // 품절 예시
+const SOLDOUT = { p04: ["여성:XS"], p11: ["남성:XXL"], p08: ["여성:24"], p17: ["여성:L"] };   // 사이즈 품절 예시
 
+// 등급 이름은 shop_profiles.grade 규칙(WELCOME · SILVER · GOLD · VIP)과 같게
 const GRADES = [
-  { key: "WELCOME", min: 0,      rate: .01, perks: ["가입 즉시 3,000P", "생일 쿠폰 5%"] },
-  { key: "SILVER",  min: 200000, rate: .03, perks: ["무료배송 쿠폰 월 1장", "생일 쿠폰 10%"] },
-  { key: "GOLD",    min: 500000, rate: .05, perks: ["무료배송 쿠폰 월 3장", "신상품 선구매"] },
-  { key: "ROYAL",   min: 1000000, rate: .07, perks: ["전 주문 무료배송", "전담 스타일 상담"] }
+  { key: "WELCOME", min: 0,       rate: .01, perks: ["가입 즉시 3,000P", "생일 쿠폰 5%"] },
+  { key: "SILVER",  min: 200000,  rate: .03, perks: ["무료배송 쿠폰 월 1장", "생일 쿠폰 10%"] },
+  { key: "GOLD",    min: 500000,  rate: .05, perks: ["무료배송 쿠폰 월 3장", "신상품 선구매"] },
+  { key: "VIP",     min: 1000000, rate: .07, perks: ["전 주문 무료배송", "전담 스타일 상담"] }
 ];
 const WELCOME_POINT = 3000, FREE_SHIP = 50000, SHIP_FEE = 3000;
 
@@ -623,33 +652,97 @@ const HERO = [
 
 /* ════════════════════════════════════════════════════════
    저장소 · 유틸
+   · 회원 · 주문 · 상품 → Supabase
+   · 장바구니 · 좋아요 · 포인트 내역 표시 → 이 브라우저(localStorage)
    ════════════════════════════════════════════════════════ */
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
-let users = store.get("ba2_users", {}), session = store.get("ba2_session", null), cart = store.get("ba2_cart", []), likes = store.get("ba2_likes", []);
-const me = () => (session && users[session]) || null;
-const saveUsers = () => store.set("ba2_users", users), saveCart = () => store.set("ba2_cart", cart), saveLikes = () => store.set("ba2_likes", likes);
+let cart = store.get("ba3_cart", []), likes = store.get("ba3_likes", []);
+const saveCart = () => store.set("ba3_cart", cart), saveLikes = () => store.set("ba3_likes", likes);
+
+let authUser = null, profile = null, myOrders = [];
+const me = () => (authUser && profile) ? {
+  id: authUser.id,
+  name: profile.name || (authUser.email || "").split("@")[0],
+  email: profile.email || authUser.email,
+  phone: profile.phone || "",
+  gender: (authUser.user_metadata || {}).gender || "",
+  addr: (authUser.user_metadata || {}).addr || "",
+  points: profile.points, grade: profile.grade, role: profile.role,
+  spent: myOrders.filter(o => o.status !== "취소").reduce((a, o) => a + o.total, 0),
+  orders: myOrders
+} : null;
 
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const won = n => Math.round(n).toLocaleString("ko-KR") + "원", pt = n => Math.round(n).toLocaleString("ko-KR") + "P";
-const fp = p => Math.round(p.price * (1 - p.sale) / 10) * 10;
-const byId = id => PRODUCTS.find(p => p.id === id);
+const fp = p => p.price;                                                   // 판매가 = DB 의 price
+const rateOf = p => p.list > p.price ? Math.round((1 - p.price / p.list) * 100) : 0;
+const byId = id => PRODUCTS.find(p => p.id === String(id));
 const gradeOf = s => [...GRADES].reverse().find(g => s >= g.min);
-const curGrade = () => gradeOf(me() ? me().spent : 0);
-const nowStr = () => { const d = new Date(), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}.${z(d.getMonth() + 1)}.${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+const curGrade = () => { const u = me(); return (u && GRADES.find(g => g.key === u.grade)) || GRADES[0]; };
+const maxQty = p => Math.max(0, Math.min(10, p.stock));
+const orderNo = id => "BA" + String(id).padStart(8, "0");
+const z2 = n => String(n).padStart(2, "0");
+const fmtDate = iso => { const d = iso ? new Date(iso) : new Date(); return `${d.getFullYear()}.${z2(d.getMonth() + 1)}.${z2(d.getDate())} ${z2(d.getHours())}:${z2(d.getMinutes())}`; };
+const nowStr = () => fmtDate();
 const heartSvg = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.5-9.5 9-9.5 9z"/></svg>';
 
-async function hashPw(pw) {
-  try { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ba2::" + pw)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join(""); }
-  catch (e) { let h = 0; for (const c of "ba2::" + pw) h = (h * 31 + c.charCodeAt(0)) | 0; return "x" + h; }
+// 포인트 내역(화면 표시용) — 이 브라우저에만 남는다. 실제 포인트는 shop_profiles.points
+const plogKey = () => "ba3_plog_" + (authUser ? authUser.id : "");
+const getPlog = () => store.get(plogKey(), []);
+function addPlog(text, amount) { const l = getPlog(); l.unshift({ date: nowStr(), text, amount }); store.set(plogKey(), l.slice(0, 50)); }
+
+// Supabase 오류를 알아보기 쉬운 말로
+function korErr(e) {
+  const m = (e && e.message) || String(e || "");
+  if (/Invalid login credentials/i.test(m)) return "이메일 또는 비밀번호가 맞지 않아요.";
+  if (/already registered|already been registered|already exists/i.test(m)) return "이미 가입된 이메일이에요.";
+  if (/Email not confirmed/i.test(m)) return "이메일 확인이 필요해요. (Supabase 에서 Confirm email 을 꺼 주세요)";
+  if (/rate limit/i.test(m)) return "요청이 너무 많아요. 잠시 후 다시 시도해주세요. (Confirm email 을 꺼 두면 해결돼요)";
+  if (/Password should be|weak password/i.test(m)) return "비밀번호가 너무 짧거나 약해요.";
+  if (/Invalid API key/i.test(m)) return "Supabase 공개 키가 올바르지 않아요.";
+  if (/does not exist/i.test(m)) return "DB 에 표나 함수가 없어요. SQL 파일을 실행했는지 확인해주세요. (" + m + ")";
+  if (/Failed to fetch|NetworkError/i.test(m)) return "Supabase 에 연결하지 못했어요. 인터넷과 주소를 확인해주세요.";
+  return m;
 }
-let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2200); }
+
+let tt; function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(tt); tt = setTimeout(() => t.classList.remove("show"), 2600); }
 function open(id) { $("#" + id).classList.add("open"); document.body.style.overflow = "hidden"; }
 function close(id) { $("#" + id).classList.remove("open"); if (!$$(".dim.open").length) document.body.style.overflow = ""; }
 $$(".dim").forEach(d => d.addEventListener("click", e => { if (e.target === d || e.target.closest("[data-close]")) close(d.id); }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".dim.open").forEach(d => close(d.id)); });
+
+/* ════════════════════════════════════════════════════════
+   DB 읽기: 상품 · 내 정보 · 내 주문
+   ════════════════════════════════════════════════════════ */
+async function loadProducts() {
+  const { data, error } = await db.from("shop_products").select("*").order("id");
+  productsLoaded = true;
+  if (error) { PRODUCTS = []; toast("상품을 불러오지 못했어요: " + korErr(error)); return; }
+  PRODUCTS = data.map(toProduct);
+  cart = cart.filter(c => byId(c.id)); saveCart();             // 없어진 상품은 장바구니에서 뺀다
+}
+async function loadMe() {
+  const { data: { session } } = await db.auth.getSession();
+  authUser = session ? session.user : null;
+  profile = null; myOrders = [];
+  if (!authUser) return;
+  // 가입 직후에는 회원 줄이 생기기까지 잠깐 걸릴 수 있어 몇 번 다시 읽는다
+  for (let t = 0; t < 4 && !profile; t++) {
+    const { data, error } = await db.from("shop_profiles").select("*").eq("id", authUser.id).maybeSingle();
+    if (error) { toast("회원 정보를 읽지 못했어요: " + korErr(error)); break; }
+    profile = data;
+    if (!profile) await new Promise(r => setTimeout(r, 500));
+  }
+  const { data: orders } = await db.from("shop_orders")
+    .select("id, total, status, created_at, shop_order_items(product_id, qty, unit_price, shop_products(name, image_url))")
+    .eq("user_id", authUser.id)
+    .order("created_at", { ascending: false });
+  myOrders = orders || [];
+}
 
 /* ════════════════════════════════════════════════════════
    1. 히어로: 3장씩 보이고 한 칸씩 밀림 (무한 반복)
@@ -689,18 +782,21 @@ let curCat = "ALL", curGender = "ALL", keyword = "", sortBy = "new";
 function renderSubNav() {
   $("#subNav").innerHTML = `<span class="brand">Bleu Atelier</span>` +
     SUBNAV.map(([k, l]) => `<button data-go="${k}" class="${k === curCat ? "on" : ""} ${k === "발매" ? "dot" : ""} ${k === "OUTLET" ? "sale" : ""}">${l}</button>`).join("") +
-    `<label class="search-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8d9bc2" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="searchInput" placeholder="상품 검색" value="${keyword}"></label>`;
+    `<label class="search-box"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8d9bc2" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="searchInput" placeholder="상품 검색" value="${esc(keyword)}"></label>`;
   $("#searchInput").addEventListener("input", e => { keyword = e.target.value.trim(); renderGrid(); });
 }
 function renderTiles() {
   const picks = ["p11", "p04", "p13", "p17", "p01", "p09", "p07", "p18", "p19"];
   const labels = ["퍼 후드 파카", "크롭 집업 후드", "퍼지 가디건", "페이크 퍼 자켓", "트루퍼 캡", "퀼팅 카고팬츠", "모헤어 풀오버", "배색 플리스", "체인 숄더백"];
-  $("#tileRow").innerHTML = picks.map((id, i) => `<a class="tile" href="#shop" data-pid="${id}"><img src="${IMG[id]}" alt="">${labels[i]}</a>`).join("");
+  $("#tileRow").innerHTML = picks.map((code, i) => {
+    const p = PRODUCTS.find(x => x.code === code);
+    return p ? `<a class="tile" href="#shop" data-pid="${p.id}"><img src="${p.img}" alt="">${labels[i]}</a>` : "";
+  }).join("");
 }
 function renderHeader() {
   const u = me();
   $("#userArea").innerHTML = u
-    ? `<button class="me-chip" id="myBtn"><span class="gtag g-${curGrade().key}">${curGrade().key}</span>${u.name}님 <b>${pt(u.points)}</b></button>`
+    ? `${u.role === "admin" ? `<a class="login-btn admin-link" href="admin.html" style="margin-right:10px">관리자</a>` : ""}<button class="me-chip" id="myBtn"><span class="gtag g-${curGrade().key}">${curGrade().key}</span>${esc(u.name)}님 <b>${pt(u.points)}</b></button>`
     : `<button class="login-btn" id="loginBtn">로그인 / 회원가입</button>`;
   if (u) $("#myBtn").onclick = () => openMy("orders"); else $("#loginBtn").onclick = () => openAuth("login");
   const n = cart.reduce((a, c) => a + c.qty, 0);
@@ -725,11 +821,12 @@ $("#svcJoin").onclick = () => me() ? toast("이미 회원이에요 😊") : open
 $("#likeTop").onclick = () => me() ? openMy("likes") : (toast(`좋아요한 상품 ${likes.length}개`));
 
 /* ════════════════════════════════════════════════════════
-   3. 상품 그리드
+   3. 상품 그리드 (shop_products 에서 읽어 온 상품)
    ════════════════════════════════════════════════════════ */
 function renderGrid() {
   const titles = { ALL: "전체 상품", 발매: "신규 발매", 아우터: "아우터", 상의: "상의", 바지: "바지", ACC: "모자 · 가방 · 소품", OUTLET: "아울렛" };
   $("#listTitle").textContent = titles[curCat] || "전체 상품";
+  if (!productsLoaded) { $("#countTxt").textContent = "상품을 불러오는 중..."; $("#grid").innerHTML = ""; return; }
   let list = PRODUCTS.filter(p =>
     (curCat === "ALL" || (curCat === "OUTLET" ? p.tags.includes("OUTLET") : curCat === "발매" ? p.tags.includes("NEW") : p.cat === curCat)) &&
     (curGender === "ALL" || p.gender === curGender || p.gender === "공용") &&
@@ -739,17 +836,17 @@ function renderGrid() {
   if (sortBy === "high") list.sort((a, b) => fp(b) - fp(a));
   $("#countTxt").textContent = `${list.length}개 상품`;
   $("#grid").innerHTML = list.length ? list.map((p, i) => {
-    const liked = likes.includes(p.id);
+    const liked = likes.includes(p.id), r = rateOf(p);
     return `<article class="card" data-id="${p.id}" style="animation-delay:${i * .03}s">
-      <div class="thumb"><img src="${p.img}" alt="${p.name}" loading="lazy">
+      <div class="thumb"><img src="${p.img}" alt="${esc(p.name)}" loading="lazy">
         <button class="heart ${liked ? "on" : ""}" data-like="${p.id}" aria-label="좋아요">${heartSvg}</button></div>
-      <p class="c-name">${p.name}</p>
-      <p class="c-price"><span class="rate">${Math.round(p.sale * 100)}%</span>${won(fp(p))}</p>
+      <p class="c-name">${esc(p.name)}</p>
+      <p class="c-price">${r ? `<span class="rate">${r}%</span>` : ""}${won(fp(p))}</p>
       <p class="c-like">${heartSvg}${p.likes + (liked ? 1 : 0)}</p>
-      <div class="c-tags">${p.tags.map(t => `<span class="${t === "쿠폰" ? "cp" : ""}">${t}</span>`).join("")}</div>
+      <div class="c-tags">${p.stock <= 0 ? `<span>품절</span>` : ""}${p.tags.map(t => `<span class="${t === "쿠폰" ? "cp" : ""}">${t}</span>`).join("")}</div>
       <div class="c-foot"><span>옵션 ⌵</span><span>${p.gender}</span></div>
     </article>`;
-  }).join("") : `<p class="empty">검색 결과가 없어요.</p>`;
+  }).join("") : `<p class="empty">${PRODUCTS.length ? "검색 결과가 없어요." : "등록된 상품이 없어요."}</p>`;
 }
 $("#grid").addEventListener("click", e => {
   const h = e.target.closest("[data-like]");
@@ -766,26 +863,26 @@ function toggleLike(id) {
    ════════════════════════════════════════════════════════ */
 let sel = {};
 function openDetail(id) {
-  const p = byId(id), u = me();
+  const p = byId(id), u = me(); if (!p) return;
   // 남성/여성 전용 상품은 고정, 공용은 회원 성별을 기본값으로
   const g = p.gender === "공용" ? (u && u.gender) || "" : p.gender;
-  sel = { id, gender: g, size: p.type === "free" ? "FREE" : null, qty: 1, chart: false };
+  sel = { id: p.id, gender: g, size: p.type === "free" ? "FREE" : null, qty: 1, chart: false };
   drawDetail(); open("detailDim");
 }
 function sizeTable(p, g) { return SIZE[p.type][g]; }
 function drawDetail() {
-  const p = byId(sel.id), gr = curGrade(), total = fp(p) * sel.qty;
+  const p = byId(sel.id), gr = curGrade(), total = fp(p) * sel.qty, r = rateOf(p);
   const canM = p.gender !== "여성", canW = p.gender !== "남성";
   const tbl = sel.gender ? sizeTable(p, sel.gender) : null;
-  const sold = SOLDOUT[p.id] || [];
-  const unit = p.type === "bottom" ? "인치" : p.type === "top" ? "" : "";
+  const sold = SOLDOUT[p.code] || [];
+  const out = p.stock <= 0;
   $("#detailBody").innerHTML = `
-    <div class="d-img"><img src="${p.img}" alt="${p.name}"></div>
+    <div class="d-img"><img src="${p.img}" alt="${esc(p.name)}"></div>
     <div class="d-info">
-      <p class="d-cat">${p.cat} · ${p.gender} ${p.gender === "공용" ? "(남성·여성 사이즈 모두 있음)" : "전용"}</p>
-      <h2 class="d-name">${p.name}</h2>
-      <div class="d-price"><span class="rate">${Math.round(p.sale * 100)}%</span><b>${won(fp(p))}</b><del>${won(p.price)}</del></div>
-      <p class="d-meta">쿠폰 적용 가능 · 5만원 이상 무료배송 · 7일 이내 교환/반품</p>
+      <p class="d-cat">${esc(p.cat)} · ${p.gender} ${p.gender === "공용" ? "(남성·여성 사이즈 모두 있음)" : "전용"}</p>
+      <h2 class="d-name">${esc(p.name)}</h2>
+      <div class="d-price">${r ? `<span class="rate">${r}%</span>` : ""}<b>${won(fp(p))}</b>${r ? `<del>${won(p.list)}</del>` : ""}</div>
+      <p class="d-meta">쿠폰 적용 가능 · 5만원 이상 무료배송 · 7일 이내 교환/반품 · 재고 ${out ? "<b style='color:#ff3b3b'>품절</b>" : p.stock + "개"}</p>
 
       ${p.type === "free" ? `<p class="step">사이즈 <span>FREE (원 사이즈)</span></p>` : `
       <p class="step">① 사이즈 기준 선택 <span>${sel.gender ? sel.gender + " 사이즈" : "남성 / 여성"}</span></p>
@@ -795,11 +892,11 @@ function drawDetail() {
       </div>
       <p class="step">② 사이즈 선택 <span>${sel.size ? `${sel.gender} ${sel.size}` : (sel.gender ? "사이즈를 골라주세요" : "먼저 기준을 골라주세요")}</span>
         ${tbl ? `<button class="chart-btn" data-chart>${sel.chart ? "사이즈표 닫기" : "사이즈표 보기"}</button>` : ""}</p>
-      ${tbl ? `<div class="sizes">${tbl.rows.map(r => {
-          const off = sold.includes(`${sel.gender}:${r[0]}`);
-          return `<button data-size="${r[0]}" class="${sel.size === r[0] ? "on" : ""}" ${off ? "disabled" : ""}>${r[0]}<small>${off ? "품절" : (r[1] || (p.type === "bottom" ? r[2] * 2 + "cm" : p.type === "hat" ? r[2] + "cm" : ""))}</small></button>`; }).join("")}</div>
+      ${tbl ? `<div class="sizes">${tbl.rows.map(row => {
+          const off = sold.includes(`${sel.gender}:${row[0]}`);
+          return `<button data-size="${row[0]}" class="${sel.size === row[0] ? "on" : ""}" ${off ? "disabled" : ""}>${row[0]}<small>${off ? "품절" : (row[1] || (p.type === "bottom" ? row[2] * 2 + "cm" : p.type === "hat" ? row[2] + "cm" : ""))}</small></button>`; }).join("")}</div>
         ${sel.chart ? `<table class="chart"><tr>${tbl.cols.filter(Boolean).map(c => `<th>${c}</th>`).join("")}</tr>
-          ${tbl.rows.map(r => `<tr class="${sel.size === r[0] ? "on" : ""}"><td>${r[0]}${r[1] ? ` (${r[1]})` : ""}</td>${r.slice(2).filter(v => v !== "").map(v => `<td>${v}</td>`).join("")}</tr>`).join("")}</table>
+          ${tbl.rows.map(row => `<tr class="${sel.size === row[0] ? "on" : ""}"><td>${row[0]}${row[1] ? ` (${row[1]})` : ""}</td>${row.slice(2).filter(v => v !== "").map(v => `<td>${v}</td>`).join("")}</tr>`).join("")}</table>
           <p class="size-hint">단위 cm · 단면 기준 · 측정 방법에 따라 1~3cm 오차가 있을 수 있어요.</p>` : ""}`
         : `<div class="sizes" style="opacity:.4">${["·", "·", "·", "·"].map(() => `<button disabled>-</button>`).join("")}</div>`}
       `}
@@ -808,7 +905,8 @@ function drawDetail() {
       ${sel.size ? `<div class="selected"><span>${p.type === "free" ? "FREE" : `${sel.gender} / ${sel.size}`} · ${sel.qty}개</span><b>${won(total)}</b></div>` : ""}
       <div class="total"><span>총 상품금액</span><b>${won(total)}</b></div>
       <div class="earn">${me() ? `<b>${gr.key}</b> 등급 ${Math.round(gr.rate * 100)}% 적립 · <b>${pt(total * gr.rate)}</b> 적립 예정` : `로그인하면 최대 7% 적립 · 지금 가입 시 <b>3,000P</b>`}</div>
-      <div class="btns2"><button class="btn btn-line" data-act="cart">장바구니</button><button class="btn btn-navy" data-act="buy">바로 구매</button></div>
+      ${out ? `<div class="btns2"><button class="btn btn-line" disabled style="grid-column:1/-1;color:#aaa">품절된 상품이에요</button></div>`
+            : `<div class="btns2"><button class="btn btn-line" data-act="cart">장바구니</button><button class="btn btn-navy" data-act="buy">바로 구매</button></div>`}
     </div>`;
 }
 $("#detailBody").addEventListener("click", e => {
@@ -817,7 +915,7 @@ $("#detailBody").addEventListener("click", e => {
   if (b.dataset.gsel) { if (sel.gender !== b.dataset.gsel) sel.size = null; sel.gender = b.dataset.gsel; }
   else if (b.dataset.size) sel.size = b.dataset.size;
   else if ("chart" in b.dataset) sel.chart = !sel.chart;
-  else if (b.dataset.q) sel.qty = Math.max(1, Math.min(10, sel.qty + +b.dataset.q));
+  else if (b.dataset.q) sel.qty = Math.max(1, Math.min(maxQty(p) || 1, sel.qty + +b.dataset.q));
   else if (b.dataset.act) {
     if (p.type !== "free" && !sel.gender) { toast("남성 / 여성 사이즈 기준을 먼저 골라주세요"); return; }
     if (!sel.size) { toast("사이즈를 선택해주세요"); return; }
@@ -831,24 +929,24 @@ $("#detailBody").addEventListener("click", e => {
 });
 
 /* ════════════════════════════════════════════════════════
-   5. 장바구니
+   5. 장바구니 (이 브라우저에 보관)
    ════════════════════════════════════════════════════════ */
 function addToCart(id, gender, size, qty, silent) {
-  const key = `${id}|${gender}|${size}`, f = cart.find(c => c.key === key);
-  if (f) f.qty = Math.min(10, f.qty + qty); else cart.push({ key, id, gender, size, qty });
+  const p = byId(id), key = `${id}|${gender}|${size}`, f = cart.find(c => c.key === key);
+  if (f) f.qty = Math.min(maxQty(p), f.qty + qty); else cart.push({ key, id, gender, size, qty: Math.min(maxQty(p), qty) });
   saveCart(); renderHeader();
   if (!silent) toast(`장바구니에 담았어요 (${gender} ${size})`);
   return key;
 }
 function calc(items, use = 0) {
   const sub = items.reduce((a, c) => a + fp(byId(c.id)) * c.qty, 0), g = curGrade();
-  const ship = !sub || sub >= FREE_SHIP || g.key === "ROYAL" ? 0 : SHIP_FEE;
+  const ship = !sub || sub >= FREE_SHIP || g.key === "VIP" ? 0 : SHIP_FEE;
   return { sub, ship, pay: Math.max(0, sub + ship - use), earn: Math.max(0, Math.floor((sub - use) * g.rate)), g };
 }
 function renderCart() {
   if (!cart.length) { $("#cartBody").innerHTML = `<p class="center" style="padding:80px 0;color:#888">장바구니가 비어 있어요.</p>`; $("#cartFoot").innerHTML = `<button class="btn btn-navy btn-block" data-close>쇼핑 계속하기</button>`; return; }
   $("#cartBody").innerHTML = cart.map(c => { const p = byId(c.id); return `<div class="ci"><img src="${p.img}" alt="">
-    <div><p class="nm">${p.name}</p><p class="op">${c.gender} / ${c.size}</p><div class="qty"><button data-cq="-1" data-k="${c.key}">−</button><span>${c.qty}</span><button data-cq="1" data-k="${c.key}">+</button></div></div>
+    <div><p class="nm">${esc(p.name)}</p><p class="op">${c.gender} / ${c.size}</p><div class="qty"><button data-cq="-1" data-k="${c.key}">−</button><span>${c.qty}</span><button data-cq="1" data-k="${c.key}">+</button></div></div>
     <div class="r"><b>${won(fp(p) * c.qty)}</b><button class="del" data-del="${c.key}">삭제</button></div></div>`; }).join("");
   const s = calc(cart);
   $("#cartFoot").innerHTML = `<p class="free">${s.ship ? `${won(FREE_SHIP - s.sub)} 더 담으면 무료배송` : "무료배송 적용 ✓"}</p>
@@ -860,13 +958,14 @@ function renderCart() {
 $("#cartBtn").onclick = () => { renderCart(); open("cartDim"); };
 $("#cartBody").addEventListener("click", e => {
   const q = e.target.closest("[data-cq]"), d = e.target.closest("[data-del]");
-  if (q) { const it = cart.find(c => c.key === q.dataset.k); it.qty = Math.max(1, Math.min(10, it.qty + +q.dataset.cq)); }
+  if (q) { const it = cart.find(c => c.key === q.dataset.k); it.qty = Math.max(1, Math.min(maxQty(byId(it.id)) || 1, it.qty + +q.dataset.cq)); }
   if (d) cart = cart.filter(c => c.key !== d.dataset.del);
   if (q || d) { saveCart(); renderCart(); renderHeader(); }
 });
 
 /* ════════════════════════════════════════════════════════
-   6. 회원가입 · 로그인
+   6. 회원가입 · 로그인 → Supabase Auth
+      가입할 때 이름 · 연락처를 함께 보내면 SQL 의 트리거가 shop_profiles 에 한 줄을 만든다
    ════════════════════════════════════════════════════════ */
 let afterLogin = null;
 function openAuth(mode) {
@@ -876,34 +975,55 @@ function openAuth(mode) {
 }
 $$("[data-auth]").forEach(b => b.onclick = () => openAuth(b.dataset.auth));
 function afterAuth(msg) { close("authDim"); refreshAll(); toast(msg); if (afterLogin) { const f = afterLogin; afterLogin = null; f(); } }
+function busyBtn(form, on, label) { const b = form.querySelector("[type=submit]"); if (on) { b.dataset.t = b.textContent; b.textContent = label; } else if (b.dataset.t) b.textContent = b.dataset.t; b.disabled = on; }
 
 $("#joinForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const v = Object.fromEntries(new FormData(e.target)), email = (v.email || "").trim().toLowerCase();
+  const f = e.target, v = Object.fromEntries(new FormData(f)), email = (v.email || "").trim().toLowerCase();
   let err = "";
   if (!v.name.trim()) err = "이름을 입력해주세요.";
   else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) err = "이메일 형식을 확인해주세요.";
-  else if (users[email]) err = "이미 가입된 이메일이에요.";
   else if ((v.pw || "").length < 8) err = "비밀번호는 8자 이상이어야 해요.";
   else if (v.pw !== v.pw2) err = "비밀번호가 서로 달라요.";
   else if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(v.phone.trim())) err = "휴대폰 번호를 확인해주세요.";
   else if (!v.agree) err = "필수 약관에 동의해주세요.";
   $("#joinErr").textContent = err; if (err) return;
-  users[email] = { name: v.name.trim(), gender: v.gender, email, phone: v.phone.trim(), pw: await hashPw(v.pw), points: WELCOME_POINT, spent: 0, joined: nowStr(),
-    pointLog: [{ date: nowStr(), text: "회원가입 웰컴 포인트", amount: WELCOME_POINT }], orders: [] };
-  saveUsers(); session = email; store.set("ba2_session", session); e.target.reset();
-  afterAuth(`${users[email].name}님 환영해요! 3,000P 지급 🎉`);
+
+  busyBtn(f, true, "가입하는 중...");
+  const { data, error } = await db.auth.signUp({
+    email, password: v.pw,
+    options: { data: { name: v.name.trim(), phone: v.phone.trim(), gender: v.gender } }
+  });
+  busyBtn(f, false);
+  if (error) { $("#joinErr").textContent = korErr(error); return; }
+  if (!data.session) {
+    $("#joinErr").textContent = "가입은 됐지만 이메일 확인이 켜져 있어 바로 로그인되지 않았어요. Supabase 에서 Confirm email 을 끄고 로그인해주세요.";
+    return;
+  }
+  f.reset();
+  await loadMe();
+  addPlog("회원가입 웰컴 포인트", WELCOME_POINT);
+  afterAuth(`${me() ? me().name : v.name.trim()}님 환영해요! 3,000P 지급 🎉`);
 });
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const v = Object.fromEntries(new FormData(e.target)), email = (v.email || "").trim().toLowerCase(), u = users[email];
-  if (!u || u.pw !== await hashPw(v.pw || "")) { $("#loginErr").textContent = "이메일 또는 비밀번호가 맞지 않아요."; return; }
-  session = email; store.set("ba2_session", session); e.target.reset(); afterAuth(`${u.name}님 반가워요`);
+  const f = e.target, v = Object.fromEntries(new FormData(f)), email = (v.email || "").trim().toLowerCase();
+  busyBtn(f, true, "로그인 중...");
+  const { error } = await db.auth.signInWithPassword({ email, password: v.pw || "" });
+  if (error) { busyBtn(f, false); $("#loginErr").textContent = korErr(error); return; }
+  await loadMe(); busyBtn(f, false);
+  if (!me()) { $("#loginErr").textContent = "로그인은 됐지만 회원 정보(shop_profiles)가 없어요. SQL 파일을 실행했는지 확인해주세요."; return; }
+  f.reset(); afterAuth(`${me().name}님 반가워요`);
 });
-function logout() { session = null; store.set("ba2_session", null); close("myDim"); refreshAll(); toast("로그아웃 되었어요"); }
+async function logout() {
+  await db.auth.signOut();
+  authUser = null; profile = null; myOrders = [];
+  close("myDim"); refreshAll(); toast("로그아웃 되었어요");
+}
 
 /* ════════════════════════════════════════════════════════
-   7. 주문 · 결제
+   7. 주문 · 결제 → shop_orders · shop_order_items 에 저장
+      (DB 함수 shop_place_order 가 재고 · 포인트 · 등급까지 한 번에 처리)
    ════════════════════════════════════════════════════════ */
 let payKeys = [];
 const payItems = () => cart.filter(c => payKeys.includes(c.key));
@@ -913,7 +1033,7 @@ function startCheckout(keys) {
   const u = me(), f = $("#payForm"); f.reset();
   f.rname.value = u.name; f.rphone.value = u.phone; f.addr.value = u.addr || "";
   $("#pointInput").value = 0; $("#payErr").textContent = "";
-  $("#payItems").innerHTML = payItems().map(c => { const p = byId(c.id); return `<div class="om"><img src="${p.img}" alt=""><div><b class="n">${p.name}</b><br><span style="color:#888">${c.gender} ${c.size} · ${c.qty}개</span></div><b>${won(fp(p) * c.qty)}</b></div>`; }).join("");
+  $("#payItems").innerHTML = payItems().map(c => { const p = byId(c.id); return `<div class="om"><img src="${p.img}" alt=""><div><b class="n">${esc(p.name)}</b><br><span style="color:#888">${c.gender} ${c.size} · ${c.qty}개</span></div><b>${won(fp(p) * c.qty)}</b></div>`; }).join("");
   drawPay(); open("payDim");
 }
 function usedPoint() { const v = parseInt(String($("#pointInput").value).replace(/\D/g, ""), 10) || 0; return Math.max(0, Math.min(v, me().points, calc(payItems()).sub)); }
@@ -930,52 +1050,73 @@ $("#pointInput").addEventListener("blur", () => { $("#pointInput").value = usedP
 $("#useAll").onclick = () => { $("#pointInput").value = Math.min(me().points, calc(payItems()).sub); drawPay(); };
 $("#payForm").addEventListener("submit", e => {
   e.preventDefault(); const f = e.target; let err = "";
-  if (!f.rname.value.trim()) err = "받는 분을 입력해주세요.";
+  if (!payItems().length) err = "주문할 상품이 없어요.";
+  else if (!f.rname.value.trim()) err = "받는 분을 입력해주세요.";
   else if (!/^01[0-9]-?\d{3,4}-?\d{4}$/.test(f.rphone.value.trim())) err = "연락처를 확인해주세요.";
   else if (f.addr.value.trim().length < 5) err = "배송 주소를 입력해주세요.";
   else if (!f.agree.checked) err = "결제 동의에 체크해주세요.";
   $("#payErr").textContent = err; if (err) return;
   $("#processing").classList.remove("hidden");
-  setTimeout(() => complete(f), 1500);
+  complete(f);
 });
-function complete(f) {
-  const u = me(), items = payItems(), use = usedPoint(), s = calc(items, use), before = curGrade();
-  const o = { no: "BA" + Date.now().toString().slice(-8), date: nowStr(), method: f.method.value, status: "결제완료 · 배송준비중",
-    items: items.map(c => ({ id: c.id, name: byId(c.id).name, gender: c.gender, size: c.size, qty: c.qty })), sub: s.sub, ship: s.ship, used: use, pay: s.pay, earn: s.earn };
-  u.points -= use; if (use) u.pointLog.unshift({ date: o.date, text: `주문 ${o.no} 사용`, amount: -use });
-  u.points += s.earn; if (s.earn) u.pointLog.unshift({ date: o.date, text: `주문 ${o.no} ${before.key} ${Math.round(before.rate * 100)}% 적립`, amount: s.earn });
-  u.spent += s.sub - use; u.addr = f.addr.value.trim(); u.orders.unshift(o); saveUsers();
+async function complete(f) {
+  const items = payItems(), use = usedPoint(), before = curGrade();
+  // 같은 상품(사이즈만 다른 것)은 수량을 합쳐서 보낸다 — 주문 상세는 (주문, 상품) 한 줄씩
+  const agg = {};
+  items.forEach(c => { const p = byId(c.id); agg[p.dbId] = (agg[p.dbId] || 0) + c.qty; });
+  const p_items = Object.entries(agg).map(([product_id, qty]) => ({ product_id: Number(product_id), qty }));
+
+  const { data, error } = await db.rpc("shop_place_order", { p_items, p_use_points: use });
+  if (error) { $("#processing").classList.add("hidden"); $("#payErr").textContent = "결제 실패: " + korErr(error); return; }
+
+  // 다음 결제 때 쓰도록 배송 주소를 계정 정보에 저장 (실패해도 결제와는 상관없다)
+  db.auth.updateUser({ data: { addr: f.addr.value.trim() } }).then(r => { if (r.data && r.data.user) authUser = r.data.user; });
+
+  const no = orderNo(data.order_id);
+  if (data.used) addPlog(`주문 ${no} 사용`, -data.used);
+  if (data.earn) addPlog(`주문 ${no} ${before.key} ${Math.round(before.rate * 100)}% 적립`, data.earn);
+  const lines = items.map(c => ({ name: byId(c.id).name, gender: c.gender, size: c.size, qty: c.qty }));
   cart = cart.filter(c => !payKeys.includes(c.key)); saveCart();
-  const after = curGrade();
+  await Promise.all([loadMe(), loadProducts()]);          // 포인트 · 등급 · 재고를 DB 에서 다시 읽는다
+  const after = curGrade(), u = me();
+
   $("#processing").classList.add("hidden"); close("payDim");
-  $("#doneBody").innerHTML = `<p style="color:#888;margin-bottom:14px">주문번호 <b style="color:#111">${o.no}</b></p>
+  $("#doneBody").innerHTML = `<p style="color:#888;margin-bottom:14px">주문번호 <b style="color:#111">${no}</b></p>
     <div class="box" style="text-align:left">
-      ${o.items.map(i => `<div class="sl"><span style="text-transform:uppercase">${i.name}</span><span>${i.gender} ${i.size} × ${i.qty}</span></div>`).join("")}
-      <div class="sl tot"><span>결제금액</span><span>${won(o.pay)}</span></div>
-      <div class="sl"><span>포인트 사용</span><span class="minus">−${pt(use)}</span></div>
-      <div class="sl"><span>적립</span><span class="plus">+${pt(o.earn)}</span></div>
-      <div class="sl"><span>보유 포인트</span><b>${pt(u.points)}</b></div></div>
+      ${lines.map(i => `<div class="sl"><span style="text-transform:uppercase">${esc(i.name)}</span><span>${i.gender} ${i.size} × ${i.qty}</span></div>`).join("")}
+      <div class="sl tot"><span>결제금액</span><span>${won(data.pay)}</span></div>
+      <div class="sl"><span>포인트 사용</span><span class="minus">−${pt(data.used)}</span></div>
+      <div class="sl"><span>적립</span><span class="plus">+${pt(data.earn)}</span></div>
+      <div class="sl"><span>보유 포인트</span><b>${pt(u ? u.points : data.points)}</b></div></div>
     ${after.key !== before.key ? `<div class="levelup">🎉 <b>${after.key}</b> 등급으로 올라갔어요! 이제 ${Math.round(after.rate * 100)}% 적립</div>` : ""}`;
-  open("doneDim"); refreshAll();
+  open("doneDim"); refreshAll(); renderTiles();
 }
 $("#goMy").onclick = () => { close("doneDim"); openMy("orders"); };
 
 /* ════════════════════════════════════════════════════════
-   8. 마이페이지
+   8. 마이페이지 (내 정보 · 내 주문은 DB 에서)
    ════════════════════════════════════════════════════════ */
 let myTab = "orders";
-function openMy(t) { myTab = t; drawMy(); open("myDim"); }
+async function openMy(t) { myTab = t; drawMy(); open("myDim"); await loadMe(); drawMy(); renderHeader(); }
 $$("[data-my]").forEach(b => b.onclick = () => { myTab = b.dataset.my; drawMy(); });
 function drawMy() {
   const u = me(); if (!u) return; const g = curGrade();
   $$("[data-my]").forEach(b => b.classList.toggle("on", b.dataset.my === myTab));
-  $("#myTop").innerHTML = `<div class="my-top"><div class="who"><span class="gtag g-${g.key}">${g.key}</span><br><b style="font-size:18px">${u.name}님</b></div>
+  $("#myTop").innerHTML = `<div class="my-top"><div class="who"><span class="gtag g-${g.key}">${g.key}</span><br><b style="font-size:18px">${esc(u.name)}님</b></div>
     <div class="st"><b>${pt(u.points)}</b><span>포인트</span></div><div class="st"><b>${Math.round(g.rate * 100)}%</b><span>적립률</span></div><div class="st"><b>${u.orders.length}</b><span>주문</span></div></div>`;
   let h = "";
-  if (myTab === "orders") h = u.orders.length ? u.orders.map(o => `<div class="lr"><div><b style="text-transform:uppercase">${o.items[0].name}${o.items.length > 1 ? ` 외 ${o.items.length - 1}건` : ""}</b><small>${o.date} · ${o.no} · ${o.items.map(i => `${i.gender} ${i.size}`).join(", ")}</small></div><div style="text-align:right"><b>${won(o.pay)}</b><br><span class="status">${o.status}</span></div></div>`).join("") : `<p class="center" style="padding:40px 0;color:#888">주문 내역이 없어요.</p>`;
-  else if (myTab === "likes") h = likes.length ? likes.map(id => { const p = byId(id); return `<div class="lr" style="align-items:center"><div style="display:flex;gap:10px;align-items:center"><img src="${p.img}" style="width:44px;height:52px;object-fit:cover;background:#f4f4f4" alt=""><b style="text-transform:uppercase;font-size:12px">${p.name}</b></div><button class="btn btn-line" style="height:34px;font-size:12px" data-pid="${id}">보기</button></div>`; }).join("") : `<p class="center" style="padding:40px 0;color:#888">좋아요한 상품이 없어요.</p>`;
-  else if (myTab === "points") h = u.pointLog.map(l => `<div class="lr"><div>${l.text}<small>${l.date}</small></div><span class="${l.amount > 0 ? "plus" : "minus"}">${l.amount > 0 ? "+" : ""}${pt(l.amount)}</span></div>`).join("");
-  else h = `<div class="lr"><span>이름</span><b>${u.name}</b></div><div class="lr"><span>이메일</span><b>${u.email}</b></div><div class="lr"><span>기본 사이즈 기준</span><b>${u.gender}</b></div><div class="lr"><span>휴대폰</span><b>${u.phone}</b></div><div class="lr"><span>누적 구매금액</span><b>${won(u.spent)}</b></div><button class="btn btn-line btn-block" style="margin-top:16px" id="logoutBtn">로그아웃</button>`;
+  if (myTab === "orders") h = u.orders.length ? u.orders.map(o => {
+      const its = o.shop_order_items || [], first = its[0] && its[0].shop_products ? its[0].shop_products.name : "상품";
+      return `<div class="lr"><div><b style="text-transform:uppercase">${esc(first)}${its.length > 1 ? ` 외 ${its.length - 1}건` : ""}</b><small>${fmtDate(o.created_at)} · ${orderNo(o.id)} · ${its.reduce((a, i) => a + i.qty, 0)}개</small></div><div style="text-align:right"><b>${won(o.total)}</b><br><span class="status">${esc(o.status)}</span></div></div>`;
+    }).join("") : `<p class="center" style="padding:40px 0;color:#888">주문 내역이 없어요.</p>`;
+  else if (myTab === "likes") h = likes.filter(byId).length ? likes.filter(byId).map(id => { const p = byId(id); return `<div class="lr" style="align-items:center"><div style="display:flex;gap:10px;align-items:center"><img src="${p.img}" style="width:44px;height:52px;object-fit:cover;background:#f4f4f4" alt=""><b style="text-transform:uppercase;font-size:12px">${esc(p.name)}</b></div><button class="btn btn-line" style="height:34px;font-size:12px" data-pid="${id}">보기</button></div>`; }).join("") : `<p class="center" style="padding:40px 0;color:#888">좋아요한 상품이 없어요.</p>`;
+  else if (myTab === "points") {
+    const log = getPlog();
+    h = `<div class="lr"><span>현재 보유 포인트</span><b>${pt(u.points)}</b></div>` +
+      (log.length ? log.map(l => `<div class="lr"><div>${esc(l.text)}<small>${l.date}</small></div><span class="${l.amount > 0 ? "plus" : "minus"}">${l.amount > 0 ? "+" : ""}${pt(l.amount)}</span></div>`).join("")
+                  : `<p class="center" style="padding:30px 0;color:#888">이 브라우저에서 생긴 포인트 내역이 없어요.</p>`);
+  }
+  else h = `<div class="lr"><span>이름</span><b>${esc(u.name)}</b></div><div class="lr"><span>이메일</span><b>${esc(u.email)}</b></div><div class="lr"><span>기본 사이즈 기준</span><b>${esc(u.gender || "-")}</b></div><div class="lr"><span>휴대폰</span><b>${esc(u.phone)}</b></div><div class="lr"><span>등급</span><b>${g.key}</b></div><div class="lr"><span>누적 구매금액</span><b>${won(u.spent)}</b></div>${u.role === "admin" ? `<a class="btn btn-navy btn-block" style="margin-top:16px" href="admin.html">회원 관리 페이지</a>` : ""}<button class="btn btn-line btn-block" style="margin-top:10px" id="logoutBtn">로그아웃</button>`;
   $("#myBody").innerHTML = h;
   const lo = $("#logoutBtn"); if (lo) lo.onclick = logout;
   $$("#myBody [data-pid]").forEach(b => b.addEventListener("click", () => close("myDim")));
@@ -988,12 +1129,20 @@ function renderMembership() {
   const g = curGrade(), u = me();
   $("#grades").innerHTML = GRADES.map(x => `<div class="grade ${u && x.key === g.key ? "mine" : ""}"><h4>${x.key}</h4><p class="cond">${x.min ? `누적 ${won(x.min)} 이상` : "가입 즉시"}</p><p class="rate">${Math.round(x.rate * 100)}%</p><ul>${x.perks.map(p => `<li>${p}</li>`).join("")}</ul></div>`).join("");
   if (!u) { $("#progress").innerHTML = `<div class="txt"><b style="color:#fff;font-size:16px">아직 회원이 아니신가요?</b><br>가입하면 3,000P를 바로 드리고 첫 구매부터 1% 적립돼요.</div><button class="btn btn-gold" id="joinCta">회원가입</button>`; $("#joinCta").onclick = () => openAuth("join"); return; }
-  const nx = GRADES[GRADES.indexOf(g) + 1], pc = nx ? Math.min(100, (u.spent - g.min) / (nx.min - g.min) * 100) : 100;
-  $("#progress").innerHTML = `<div class="txt"><b style="color:#fff;font-size:16px">${u.name}님은 <span style="color:#f2b84b">${g.key}</span></b><br>${nx ? `${won(nx.min - u.spent)} 더 구매하면 ${nx.key} (${Math.round(nx.rate * 100)}% 적립)` : "최고 등급이에요!"}<div class="bar"><i style="width:${pc}%"></i></div></div><div style="text-align:right"><small style="color:#9fb0d8">보유 포인트</small><br><b style="font-size:26px;color:#f2b84b">${pt(u.points)}</b></div>`;
+  const nx = GRADES[GRADES.indexOf(g) + 1], pc = nx ? Math.max(0, Math.min(100, (u.spent - g.min) / (nx.min - g.min) * 100)) : 100;
+  $("#progress").innerHTML = `<div class="txt"><b style="color:#fff;font-size:16px">${esc(u.name)}님은 <span style="color:#f2b84b">${g.key}</span></b><br>${nx ? `${won(Math.max(0, nx.min - u.spent))} 더 구매하면 ${nx.key} (${Math.round(nx.rate * 100)}% 적립)` : "최고 등급이에요!"}<div class="bar"><i style="width:${pc}%"></i></div></div><div style="text-align:right"><small style="color:#9fb0d8">보유 포인트</small><br><b style="font-size:26px;color:#f2b84b">${pt(u.points)}</b></div>`;
 }
 
 function refreshAll() { renderHeader(); renderGrid(); renderMembership(); }
-renderSubNav(); renderTiles(); refreshAll();
+
+/* ════════════════════════════════════════════════════════
+   시작: 화면을 먼저 그리고, DB 에서 상품 · 내 정보를 읽어 와 다시 그린다
+   ════════════════════════════════════════════════════════ */
+(async function init() {
+  renderSubNav(); refreshAll();
+  await Promise.all([loadProducts(), loadMe()]);
+  renderTiles(); refreshAll();
+})();
 </script>
 </body>
 </html>
